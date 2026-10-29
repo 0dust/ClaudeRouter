@@ -1,7 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { execSync } from 'child_process';
 
 interface Check {
   label: string;
@@ -18,15 +17,6 @@ function checkNodeVersion(): Check {
   };
 }
 
-function checkJq(): Check {
-  try {
-    execSync('command -v jq', { stdio: 'pipe' });
-    return { label: 'jq installed', pass: true };
-  } catch {
-    return { label: 'jq installed', pass: false, detail: 'not found in PATH' };
-  }
-}
-
 function checkHookRegistered(): Check {
   const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
   try {
@@ -34,9 +24,12 @@ function checkHookRegistered(): Check {
     const settings = JSON.parse(content);
     const hooks = settings?.hooks?.UserPromptSubmit;
     if (Array.isArray(hooks)) {
-      const found = hooks.some(
-        (entry: any) => typeof entry === 'object' && entry.command && entry.command.includes('claude-router')
-      );
+      const found = hooks.some((entry: any) => {
+        if (Array.isArray(entry.hooks)) {
+          return entry.hooks.some((h: any) => typeof h === 'object' && h.command && h.command.includes('user-prompt-submit'));
+        }
+        return typeof entry === 'object' && entry.command && entry.command.includes('user-prompt-submit');
+      });
       if (found) {
         return { label: 'Hook registered in ~/.claude/settings.json', pass: true };
       }
@@ -90,7 +83,6 @@ export function handleDoctor(): void {
 
   const checks: Check[] = [
     checkNodeVersion(),
-    checkJq(),
     checkHookRegistered(),
     checkClaudeMdMarker(),
     checkRuntimeClaudeMd(),
@@ -109,7 +101,7 @@ export function handleDoctor(): void {
   if (allPass) {
     console.log('All checks passed.');
   } else {
-    console.log('Some checks failed. Run `claude-router init` to fix setup issues.');
+    console.log('Some checks failed. Run `claude-router init <project-dir>` to fix setup issues.');
     process.exit(1);
   }
 }

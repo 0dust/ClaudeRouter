@@ -105,7 +105,7 @@ Commands:
   stats    Show routing statistics for the last N days (default: 7)
   init     Register the UserPromptSubmit hook and inject CLAUDE.md directives
   remove   Remove the hook and CLAUDE.md directives
-  doctor   Check Node version, jq, hook registration, and file accessibility`);
+  doctor   Check Node version, hook registration, and file accessibility`);
       break;
     default:
       process.stderr.write(`Unknown command: ${command}\n`);

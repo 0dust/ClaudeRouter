@@ -17,15 +17,6 @@ vi.mock('os', async (importOriginal) => {
   return { ...actual, homedir: getHomedir };
 });
 
-// Mock child_process.execSync so jq check always passes
-vi.mock('child_process', async (importOriginal) => {
-  const actual = (await importOriginal()) as any;
-  return {
-    ...actual,
-    execSync: vi.fn().mockReturnValue(Buffer.from('/usr/bin/jq\n')),
-  };
-});
-
 import { handleInit, handleRemove } from '../../src/cli/init';
 
 let tmpDir: string;
@@ -69,7 +60,8 @@ describe('install/uninstall e2e', () => {
       const settings = readSettings();
       const hooks = settings.hooks.UserPromptSubmit;
       const routerHooks = hooks.filter(
-        (h: any) => typeof h === 'object' && h.command && h.command.includes('user-prompt-submit.sh')
+        (entry: any) => Array.isArray(entry.hooks) &&
+          entry.hooks.some((h: any) => typeof h === 'object' && h.command && h.command.includes('user-prompt-submit'))
       );
       expect(routerHooks.length).toBe(1);
     });
@@ -124,7 +116,8 @@ describe('install/uninstall e2e', () => {
       const settings = readSettings();
       const hooks = settings.hooks.UserPromptSubmit;
       const routerHooks = hooks.filter(
-        (h: any) => typeof h === 'object' && h.command && h.command.includes('user-prompt-submit.sh')
+        (entry: any) => Array.isArray(entry.hooks) &&
+          entry.hooks.some((h: any) => typeof h === 'object' && h.command && h.command.includes('user-prompt-submit'))
       );
       expect(routerHooks.length).toBe(1);
     });
@@ -145,7 +138,8 @@ describe('install/uninstall e2e', () => {
       const settings = readSettings();
       const hooks = settings.hooks?.UserPromptSubmit ?? [];
       const routerHooks = hooks.filter(
-        (h: any) => typeof h === 'object' && h.command && h.command.includes('user-prompt-submit.sh')
+        (entry: any) => Array.isArray(entry.hooks) &&
+          entry.hooks.some((h: any) => typeof h === 'object' && h.command && h.command.includes('user-prompt-submit'))
       );
       expect(routerHooks.length).toBe(0);
     });
@@ -210,7 +204,8 @@ describe('install/uninstall e2e', () => {
       const settings = readSettings();
       const hooks = settings.hooks.UserPromptSubmit;
       const routerHooks = hooks.filter(
-        (h: any) => typeof h === 'object' && h.command && h.command.includes('user-prompt-submit.sh')
+        (entry: any) => Array.isArray(entry.hooks) &&
+          entry.hooks.some((h: any) => typeof h === 'object' && h.command && h.command.includes('user-prompt-submit'))
       );
       expect(routerHooks.length).toBe(1);
       const content = fs.readFileSync(claudeMdPath(), 'utf-8');

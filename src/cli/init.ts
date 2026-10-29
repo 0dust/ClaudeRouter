@@ -1,18 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { execSync } from 'child_process';
-
-function checkJq(): boolean {
-  try {
-    execSync('command -v jq', { stdio: 'pipe' });
-    console.log('  ✓ jq found');
-    return true;
-  } catch {
-    process.stderr.write('  ✗ jq not found — install jq (https://jqlang.github.io/jq/)\n');
-    return false;
-  }
-}
 
 
 function getSettingsPath(): string {
@@ -37,7 +25,7 @@ function writeJsonFile(filePath: string, data: Record<string, any>): void {
 }
 
 function getHookPath(): string {
-  return path.resolve(__dirname, '..', '..', 'hooks', 'user-prompt-submit.sh');
+  return path.resolve(__dirname, '..', '..', 'hooks', 'user-prompt-submit.js');
 }
 
 function getRuntimeClaudeMdPath(): string {
@@ -57,14 +45,6 @@ export function handleInit(args: string[]): void {
       process.exit(1);
     }
     console.log(`  ✓ Node.js ${process.versions.node}`);
-
-    const hasJq = checkJq();
-
-    if (!hasJq) {
-      process.stderr.write('\nMissing required dependency. Install jq and try again.\n');
-      process.exit(1);
-    }
-
     console.log('');
 
     // 2. Register the hook
@@ -76,13 +56,6 @@ export function handleInit(args: string[]): void {
       process.exit(1);
     }
 
-    // Make the hook executable
-    try {
-      fs.chmodSync(hookPath, 0o755);
-    } catch (err: any) {
-      process.stderr.write(`Warning: could not make hook executable: ${err.message}\n`);
-    }
-
     const settings = readJsonFile(settingsPath);
 
     if (!settings.hooks) {
@@ -92,16 +65,24 @@ export function handleInit(args: string[]): void {
       settings.hooks.UserPromptSubmit = [];
     }
 
-    const alreadyRegistered = settings.hooks.UserPromptSubmit.some(
-      (entry: any) => typeof entry === 'object' && entry.command && entry.command.includes('user-prompt-submit')
-    );
+    // Use forward slashes so bash (which Claude Code uses on all platforms) handles
+    // the path correctly. Quoting handles spaces (e.g. "Apps - Local" on Windows).
+    const hookPathForShell = hookPath.replace(/\\/g, '/');
+    const hookCommand = `node "${hookPathForShell}"`;
+
+    const alreadyRegistered = settings.hooks.UserPromptSubmit.some((entry: any) => {
+      if (Array.isArray(entry.hooks)) {
+        return entry.hooks.some((h: any) => typeof h === 'object' && h.command && h.command.includes('user-prompt-submit'));
+      }
+      return typeof entry === 'object' && entry.command && entry.command.includes('user-prompt-submit');
+    });
 
     if (alreadyRegistered) {
       console.log('Hook already registered in ~/.claude/settings.json');
     } else {
       settings.hooks.UserPromptSubmit.push({
-        type: 'command',
-        command: hookPath,
+        matcher: '',
+        hooks: [{ type: 'command', command: hookCommand }],
       });
       writeJsonFile(settingsPath, settings);
       console.log('Registered UserPromptSubmit hook in ~/.claude/settings.json');
@@ -158,9 +139,15 @@ export function handleRemove(args: string[]): void {
       const settings = readJsonFile(settingsPath);
 
       if (settings.hooks && Array.isArray(settings.hooks.UserPromptSubmit)) {
-        settings.hooks.UserPromptSubmit = settings.hooks.UserPromptSubmit.filter(
-          (entry: any) => !(typeof entry === 'object' && entry.command && entry.command.includes('user-prompt-submit'))
-        );
+        settings.hooks.UserPromptSubmit = settings.hooks.UserPromptSubmit.filter((entry: any) => {
+          if (Array.isArray(entry.hooks)) {
+            entry.hooks = entry.hooks.filter(
+              (h: any) => !(typeof h === 'object' && h.command && h.command.includes('user-prompt-submit'))
+            );
+            return entry.hooks.length > 0;
+          }
+          return !(typeof entry === 'object' && entry.command && entry.command.includes('user-prompt-submit'));
+        });
 
         if (settings.hooks.UserPromptSubmit.length === 0) {
           delete settings.hooks.UserPromptSubmit;

@@ -198,6 +198,7 @@ describe('telemetry e2e', () => {
 
   describe('resilience', () => {
     it('logDecision when directory is not writable → no exception propagates', () => {
+      if (process.platform === 'win32') return; // chmod has no effect on NTFS
       fs.mkdirSync(eventsDir(), { recursive: true });
       fs.chmodSync(eventsDir(), 0o444);
       try {
@@ -208,7 +209,7 @@ describe('telemetry e2e', () => {
     });
 
     it('logDecision when fs write fails → no exception propagates', () => {
-      // Create a read-only events file
+      if (process.platform === 'win32') return; // chmod has no effect on NTFS
       fs.mkdirSync(eventsDir(), { recursive: true });
       fs.writeFileSync(eventsPath(), '', { mode: 0o444 });
       try {

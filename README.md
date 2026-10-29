@@ -11,7 +11,6 @@
 - **Node.js 18+**
 - **Claude Code** installed ([install guide](https://docs.anthropic.com/en/docs/claude-code))
 - **Claude Pro or Max subscription** (required for subagent delegation)
-- **jq** — the hook script depends on it (`brew install jq` / `apt install jq`)
 
 ## Installation
 
@@ -32,7 +31,6 @@ claude-router init
 ```
 
 This will:
-- Verify dependencies (`jq`)
 - Register the `UserPromptSubmit` hook in `~/.claude/settings.json`
 - Append the routing directive to your project's `CLAUDE.md` (with markers for clean removal)
 
@@ -56,11 +54,7 @@ After a few prompts, check your routing stats:
 claude-router stats
 ```
 
-If counts are incrementing, routing is active. You can also check the hook is registered:
-
-```bash
-cat ~/.claude/settings.json | jq '.hooks.UserPromptSubmit'
-```
+If counts are incrementing, routing is active.
 
 ## How It Works
 
@@ -155,22 +149,12 @@ still override with `~/.claude-router.json` for personal preferences.
 ## Troubleshooting
 
 **Stats show zero events after using Claude Code**
-The hook may not be registered. Check:
-```bash
-cat ~/.claude/settings.json | jq '.hooks.UserPromptSubmit'
-```
-If empty, re-run `claude-router init`.
+The hook may not be registered. Run `claude-router doctor` to check. If the hook is missing, re-run `claude-router init`.
 
 **Hook not firing**
-1. Verify `jq` is installed: `command -v jq`
-2. Verify the hook script exists at the path shown in settings.json
-3. Verify the hook is executable: `ls -la $(which claude-router)`
-
-**jq not installed**
-The hook exits silently without jq. Install it:
-- macOS: `brew install jq`
-- Ubuntu/Debian: `sudo apt install jq`
-- Arch: `sudo pacman -S jq`
+1. Verify the hook script exists at the path shown in `~/.claude/settings.json`
+2. Verify Node.js 18+ is in PATH: `node --version`
+3. Run `claude-router doctor` for a full health check
 
 **claude-router command not found after install**
 If installed via `npm install -g .`, ensure your npm global bin directory

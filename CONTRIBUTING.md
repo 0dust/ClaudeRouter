@@ -37,7 +37,7 @@ The hook script reads JSON from stdin and writes a directive to stdout:
 
 ```bash
 echo '{"prompt": "add a login endpoint", "is_subagent": false}' \
-  | bash hooks/user-prompt-submit.sh
+  | node hooks/user-prompt-submit.js
 ```
 
 To load the plugin into a live Claude Code session without reinstalling globally, use the `--plugin-dir` flag:
@@ -58,10 +58,9 @@ src/
     prompt.md       # classification prompt template for Haiku
   router/
     router.ts       # route(): orchestrates classify + model resolution
-    model-map.ts    # resolveModel(): applies conservative shift
     config.ts       # loadConfig(): merges defaults → ~/.claude-router.json → CWD
   cli/
-    index.ts        # CLI entry (route, stats commands)
+    index.ts        # CLI entry (route, stats, init, remove, doctor commands)
     stats.ts        # printStats(): reads events.jsonl and formats output
   sdk/
     factory.ts      # createRouter(): stateful router with session stats
@@ -70,7 +69,7 @@ src/
     logger.ts       # logDecision(): writes to ~/.claude-router/events.jsonl
     feedback.ts     # recordRoutingEvent(): tracks follow-up rate
 hooks/
-  user-prompt-submit.sh  # Claude Code UserPromptSubmit hook script
+  user-prompt-submit.js  # Claude Code UserPromptSubmit hook (pure Node.js)
   hooks.json             # hook registration (read by plugin system)
 .claude-plugin/
   plugin.json            # plugin metadata (name, version, description)

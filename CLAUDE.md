@@ -32,11 +32,12 @@ No separate lint script exists. TypeScript strict mode is enforced via `tsconfig
 
 ## Architecture
 
-### Classification Pipeline (3 stages)
+### Classification Pipeline (2 stages)
 
 1. **Synchronous heuristics** (`src/classifier/signals.ts` → `quickClassify`) — zero-cost pattern matching: confirmation patterns, keyword detection, token thresholds, prefix matching. Returns a tier or `null`.
 2. **Haiku API call** (`src/classifier/classifier.ts` → `classify`) — if heuristics return `null`, sends the prompt to Haiku with the template from `src/classifier/prompt.md`. Parses the single-word response. Falls back to MEDIUM on any error.
-3. **Model resolution** (`src/router/model-map.ts` → `resolveModel`) — maps tier to model string, applies conservative shift if configured.
+
+Model resolution is handled by reading `config.tiers` directly in `router.ts` — there is no separate model-map module.
 
 ### Routing (`src/router/router.ts`)
 
@@ -44,7 +45,7 @@ Orchestrates the pipeline: checks for override keyword (`//opus` by default), ru
 
 ### Plugin integration
 
-- `hooks/user-prompt-submit.sh` — Claude Code `UserPromptSubmit` hook. Reads JSON stdin, guards against subagent loops (`is_subagent`), calls `claude-router route --format directive`, outputs the directive as plain text.
+- `hooks/user-prompt-submit.js` — Claude Code `UserPromptSubmit` hook. Pure Node.js (no bash or jq). Reads JSON stdin via `JSON.parse()`, guards against subagent loops using a file-based guard in `os.tmpdir()`, calls `claude-router route --format directive`, outputs the directive as plain text. Registered as `node /absolute/path/to/user-prompt-submit.js`.
 - `.claude-plugin/manifest.json` — registers the hook.
 - `runtime-claude.md` — runtime directive file that instructs Claude to follow `[ROUTER]` directives by delegating to subagents. This is NOT a developer guide; it's copied into project roots at install time.
 
@@ -69,7 +70,8 @@ Hardcoded defaults → `~/.claude-router.json` → `./.claude-router.json` (CWD)
 
 - Telemetry and hook code must never throw — always wrap in try/catch with silent fallback
 - Classification fallback is always MEDIUM/Sonnet (safe middle ground)
-- The `is_subagent` guard in the hook prevents infinite classification loops
+- The file-based guard in the hook (`os.tmpdir()`) prevents infinite classification loops
+- No bash, jq, or platform-specific shell tools anywhere in the codebase — pure Node.js throughout
 - Tier type is `'LOW' | 'MEDIUM' | 'HIGH'`; source type is `'signal' | 'haiku' | 'fallback' | 'override'`
 - Tests mock the Anthropic SDK — no real API calls in test suite
 
